@@ -9,8 +9,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -116,10 +114,8 @@ public class ReflectionUtils {
 
     public static <T> T newInstanceAndSetFieldValues(Class<T> clazz, Map<String, String> fieldValues) {
         T t = newInstance(clazz);
-        Field[] declaredFields = clazz.getDeclaredFields();
-        for (Field field : declaredFields) {
-            setFieldUsingAutoboxing(field, t, fieldValues.get(field.getName()));
-        }
+        fieldValues.forEach((key, value) -> findField(clazz, key)
+                .ifPresent(f -> setFieldUsingAutoboxing(f, t, value)));
         return t;
     }
 
@@ -285,10 +281,7 @@ public class ReflectionUtils {
     }
 
     public static void makeAccessible(AccessibleObject accessibleObject) {
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            accessibleObject.setAccessible(true);
-            return null;
-        });
+        accessibleObject.setAccessible(true);
     }
 
     private static <T> Constructor<T> getConstructorForArgs(Class<T> clazz, Class<?>[] args) throws NoSuchMethodException {

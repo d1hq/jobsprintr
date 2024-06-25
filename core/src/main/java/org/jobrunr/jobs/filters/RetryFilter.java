@@ -3,7 +3,7 @@ package org.jobrunr.jobs.filters;
 import org.jobrunr.jobs.Job;
 import org.jobrunr.jobs.states.FailedState;
 import org.jobrunr.jobs.states.JobState;
-import org.jobrunr.utils.JobUtils;
+import org.jobrunr.scheduling.exceptions.JobNotFoundException;
 
 import static java.time.Instant.now;
 import static org.jobrunr.jobs.states.StateName.FAILED_STATES;
@@ -45,7 +45,7 @@ public class RetryFilter implements ElectStateFilter {
 
     @Override
     public void onStateElection(Job job, JobState newState) {
-        if (isNotFailed(newState) || isProblematicExceptionAndMustNotRetry(newState) || maxAmountOfRetriesReached(job))
+        if (isNotFailed(newState) || isJobNotFoundException(newState) || isProblematicExceptionAndMustNotRetry(newState) || maxAmountOfRetriesReached(job))
             return;
 
         job.scheduleAt(now().plusSeconds(getSecondsToAdd(job)), String.format("Retry %d of %d", getFailureCount(job), getMaxNumberOfRetries(job)));
@@ -67,26 +67,26 @@ public class RetryFilter implements ElectStateFilter {
         return job.getJobStates().stream().filter(FAILED_STATES).count();
     }
 
-    private boolean isProblematicExceptionAndMustNotRetry(JobState newState) {
+    private static boolean isJobNotFoundException(JobState newState) {
+        if (newState instanceof FailedState) {
+            return ((FailedState) newState).getException() instanceof JobNotFoundException;
+        }
+        return false;
+    }
+
+    private static boolean isProblematicExceptionAndMustNotRetry(JobState newState) {
         if (newState instanceof FailedState) {
             return ((FailedState) newState).mustNotRetry();
         }
         return false;
     }
 
-    private boolean isNotFailed(JobState newState) {
+    private static boolean isNotFailed(JobState newState) {
         return !(newState instanceof FailedState);
     }
 
     private int getMaxNumberOfRetries(Job job) {
-        if(job.getAmountOfRetries() != null) return job.getAmountOfRetries();
-        return getMaxNumberOfRetriesViaJobAnnotation(job);
-    }
-
-    @Deprecated // this will be removed in JobRunr 6
-    private int getMaxNumberOfRetriesViaJobAnnotation(Job job) {
-        return JobUtils.getJobAnnotation(job.getJobDetails())
-                .map(jobAnnotation -> jobAnnotation.retries() > org.jobrunr.jobs.annotations.Job.NBR_OF_RETRIES_NOT_PROVIDED ? jobAnnotation.retries() : null)
-                .orElse(this.numberOfRetries);
+        if (job.getAmountOfRetries() != null) return job.getAmountOfRetries();
+        return this.numberOfRetries;
     }
 }

@@ -169,7 +169,6 @@ yarn-error.log*
 *.secrets
 dependency-check-bin
 dependency-check-reports
-package-lock.json
 /renovate.js
 
 # Eclipse

@@ -13,6 +13,8 @@ import org.jobrunr.jobs.Job;
  * </ul>
  * <p>
  * Can be useful for adding extra logging, ... .
+ * <p>
+ * <b><em>Please note:</em></b> Any {@link JobFilter} should process really fast. If it is repeatedly slow, it'll negatively impact the performance of JobRunr.
  */
 public interface JobServerFilter extends JobFilter {
 
@@ -22,16 +24,6 @@ public interface JobServerFilter extends JobFilter {
      * @param job the job that will be processed
      */
     default void onProcessing(Job job) {
-    }
-
-    /**
-     * This hook is called when the Job processing succeeded (note that the job still has the <code>PROCESSING</code> state).
-     *
-     * @param job the job that has been processed successfully.
-     * @deprecated Please use {@link JobServerFilter#onProcessingSucceeded(Job)}
-     */
-    @Deprecated
-    default void onProcessed(Job job) {
     }
 
     /**

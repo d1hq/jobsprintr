@@ -75,24 +75,33 @@ public abstract class AbstractJobScheduler {
      * @param reason the reason why the job is deleted.
      */
     public void delete(UUID id, String reason) {
-        final Job jobToDelete = storageProvider.getJobById(id);
-        jobToDelete.delete(reason);
-        jobFilterUtils.runOnStateElectionFilter(jobToDelete);
-        final Job deletedJob = storageProvider.save(jobToDelete);
-        jobFilterUtils.runOnStateAppliedFilters(deletedJob);
-        LOGGER.debug("Deleted Job with id {}", deletedJob.getId());
+        delete(id, reason, 3);
+    }
+
+    private void delete(UUID id, String reason, int retryCount) {
+        try {
+            final Job jobToDelete = storageProvider.getJobById(id);
+            jobToDelete.delete(reason);
+            jobFilterUtils.runOnStateElectionFilter(jobToDelete);
+            final Job deletedJob = storageProvider.save(jobToDelete);
+            jobFilterUtils.runOnStateAppliedFilters(deletedJob);
+            LOGGER.debug("Deleted Job with id {}", deletedJob.getId());
+        } catch (ConcurrentJobModificationException e) {
+            if (retryCount <= 0) throw e;
+            delete(id, reason, --retryCount);
+        }
     }
 
     /**
      * Deletes the recurring job based on the given id.
      * <h5>An example:</h5>
      * <pre>{@code
-     *      jobScheduler.delete("my-recurring-job"));
+     *      jobScheduler.deleteRecurringJob("my-recurring-job"));
      * }</pre>
      *
      * @param id the id of the recurring job to delete
      */
-    public void delete(String id) {
+    public void deleteRecurringJob(String id) {
         this.storageProvider.deleteRecurringJob(id);
     }
 
@@ -121,6 +130,7 @@ public abstract class AbstractJobScheduler {
 
     String scheduleRecurrently(RecurringJob recurringJob) {
         jobFilterUtils.runOnCreatingFilter(recurringJob);
+        storageProvider.validateRecurringJobInterval(recurringJob.durationBetweenRecurringJobInstances());
         RecurringJob savedRecurringJob = this.storageProvider.saveRecurringJob(recurringJob);
         jobFilterUtils.runOnCreatedFilter(recurringJob);
         return savedRecurringJob.getId();
