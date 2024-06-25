@@ -48,7 +48,6 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = 'org.jobsprintr'
             artifactId = 'jobsprintr-kotlin-2.0-support'
-obrunr-kotlin-17-support/build.gradle
             version = project.version
             from components.java
 
